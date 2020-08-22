@@ -149,7 +149,7 @@ class ShapeFile(object):
             for i in range(self.__featureCount):
                 feature = layer.GetFeature(i)
                 info[field].append(str(feature.GetField(field)))
-                feature.Destroy()
+                # feature.Destroy()
         return pd.DataFrame(info)
 
     def __getFieldInfo(self):

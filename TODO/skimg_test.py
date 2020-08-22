@@ -1,5 +1,5 @@
 
-from skimage import measure, draw
+from skimage import measure, draw, io
 import numpy as np
 from PIL import Image
 
@@ -14,7 +14,7 @@ if __name__ == '__main__':
     img[rr, cc] = 180
     img[rr1, cc1] = 180
     a = Image.fromarray(img)
-    a.show()
+    # a.show()
     # 检测所有图形的轮廓
     contours = measure.find_contours(img, 0.5)
     for i in range(len(contours)):
@@ -22,4 +22,6 @@ if __name__ == '__main__':
             print(contours[i][j])
             x_index = int(contours[i][j][1])
             y_index = int(contours[i][j][0])
+
+    io.imsave(r'C:\Users\Think\Desktop\output\image.jpg', img.astype(np.uint8), dpi=300)
     print('finish')

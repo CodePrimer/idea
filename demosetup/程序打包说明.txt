@@ -1,4 +1,0 @@
-1.源码存放
-2.创建setup.py
-3.cd到当前目录，python setup.py sdist，生成压缩文件
-4.解压，使用python setup.py install 安装
