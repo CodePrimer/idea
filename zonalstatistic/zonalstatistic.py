@@ -812,21 +812,15 @@ class Statistic(object):
 
 if __name__ == '__main__':
 
-    in_tif_path = r'C:\Users\wangbin\Desktop\Sta\Z_AGME_C_BABJ_1000M.tif'
-    in_shp_path = r'C:\Users\wangbin\Desktop\Sta\AreaCity.shp'
-    in_temp_dir = r'C:\Users\wangbin\Desktop\Sta\temp'
-    in_field_name = 'ID'
-    in_value_range = [0, 25]
+    in_tif_path = r'C:\Users\Think\Desktop\output\result_quxian.tif'
+    in_shp_path = r'C:\Users\Think\Desktop\nongyemianyuan\shp\320500_quxian.shp'
+    in_temp_dir = r'C:\Users\Think\Desktop\temp'
+    in_field_name = 'id'
+    in_value_range = [0, 10]
     statistic_mode = 1
-    # in_reclass_dict = {'农田': [0.01, 1.01],
-    #                    '森林': [1.01, 2.01],
-    #                    '草地': [2.01, 3.01],
-    #                    '灌木': [3.01, 4.01],
-    #                    '湿地': [4.01, 5.01],
-    #                    '水体': [5.01, 6.01],
-    #                    '不透水面': [7.01, 8.01],
-    #                    '裸地': [8.01, 9.01]}
 
     result = Statistic.main(in_tif_path, in_shp_path, in_temp_dir, in_field_name, in_value_range, statistic_mode)
-
+    for each in result['CHAR'].keys():
+        string = '%s : %s' % (each, str(result['CHAR'][each]['MEAN']))
+        print(string)
     print('finish')

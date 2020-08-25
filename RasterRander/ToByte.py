@@ -113,7 +113,7 @@ def LinearPercent(inputFile, outputFile, percent):
 if __name__ == '__main__':
 
     # 输入数据
-    inputTif = r'F:\zktq\围网养殖\盐城围网养殖\GF2_PMS1_4_L2_20200304110515_000_003_clip.tif'
+    inputTif = r'G:\zktq\水色异常\20200503水色分级\Landsat8_OLI_30_L2_20200503103000_119_038.tif'
     # 临时文件夹
     tempDir = r'C:\Users\Think\Desktop\temp'
     nanV = 0
@@ -121,7 +121,7 @@ if __name__ == '__main__':
     basename = os.path.basename(inputTif).replace('.tif', '')
     processTif = os.path.join(tempDir, basename + '_byte.tif')
 
-    bandCombine = (4, 3, 2)
+    bandCombine = (5, 4, 3)
     process(inputTif, processTif, bandCombine, nanV)
 
     enhanceTif = os.path.join(tempDir, basename + '_enhance.tif')
@@ -137,7 +137,7 @@ if __name__ == '__main__':
     # 2.切片脚本路径
     scriptPath = GDAL2TILES_PATH
     # 3.切片等级
-    zoomLevel = '9-15'
+    zoomLevel = '8-13'
 
     cmd = '%s %s -z %s -w all %s %s' % (pythonPath, scriptPath, zoomLevel, enhanceTif, falseColorDir)
     os.system(cmd)

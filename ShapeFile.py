@@ -180,8 +180,7 @@ class ShapeFile(object):
 
 
 if __name__ == "__main__":
-    shpPath = r"C:\Users\wangbin\Desktop\test\B02000.shp"
+    shpPath = r"C:\Users\Think\Desktop\temp\taihu_UTM.shp"
     shpObj = ShapeFile(shpPath)
-    shpObj.addField("top", ogr.OFTInteger)
-
+    extent = shpObj.getExtent()
     print("finish")

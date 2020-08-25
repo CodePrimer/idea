@@ -82,16 +82,23 @@ def main(inputFile, colorTable, outType='MEM', outputFile='', isAlpha=False, bgV
 
 if __name__ == '__main__':
 
-    inputFile = r'C:\Users\Think\Desktop\temp\2015.tif'
-    outputFile = r'C:\Users\Think\Desktop\output\2015.tif'
-    colorTable = {1: (91, 241, 136),
-                  2: (252, 153, 5)}       # 唯一值渲染颜色表
-    # colorTable = {1: (255, 0, 0)}
+    inputFile = r'G:\zktq\水色异常\20200503水色分级\shuisefenji4.tif'
+    outputFile = r'C:\Users\Think\Desktop\output\shuisefenji4.tif'
+    # colorTable = {0: (255, 0, 0)}
+    # colorTable = {1: (91, 241, 136),
+    #               2: (252, 153, 5)}       # 唯一值渲染颜色表
+    # colorTable = {0: (8, 243, 70),
+    #               1: (2, 255, 255)}
+    colorTable = {1: (155, 178, 255),
+                  2: (163, 255, 155),
+                  3: (56, 168, 0),
+                  4: (168, 168, 0),
+                  5: (255, 170, 0),
+                  6: (255, 0, 0)}
 
     main(inputFile, colorTable, outType='TIF', outputFile=outputFile, bgValue=(0, 0, 0), isAlpha=True)
-    print('Finish')
 
-    tileOutDir = r'C:\Users\Think\Desktop\model\tile-server\2015'
-    zoom = '9-14'
+    tileOutDir = r'C:\Users\Think\Desktop\model\tile-server\shuisefenji4'
+    zoom = '8-13'
     cmd = '%s %s -z %s -w all %s %s' % (PYTHON_PATH, GDAL2TILES_PATH, zoom, outputFile, tileOutDir)
     os.system(cmd)

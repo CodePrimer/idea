@@ -395,7 +395,7 @@ class GF(object):
 
 if __name__ == '__main__':
 
-    inputPath = r'C:\Users\Think\Desktop\南通围网养殖\GF2_PMS2_E121.6_N32.4_20191111_L1A0004380293.tar.gz'
+    inputPath = r'F:\zktq\围网养殖\连云港围网养殖2\GF2_PMS1_E119.4_N34.7_20200319_L1A0004683339.tar.gz'
     tempDir = r'C:\Users\Think\Desktop\temp'
     outputPath = 'None'
 
