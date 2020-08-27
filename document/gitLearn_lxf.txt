@@ -1,0 +1,26 @@
+GIT学习 - 廖雪峰版
+资料地址：https://www.liaoxuefeng.com/wiki/896043488029600
+以windows操作系统为例：
+
+创建版本库：
+	1.创建Git仓库
+		git init
+	2.添加或修改文件
+	3.将修改文件添加到仓库：
+		git add readme.txt
+		git add.
+	4.告知git修改内容
+		git commit -m "message"
+
+版本回退：
+	Git会将每次commit后的内容保存为某一版本，以此实现版本的回退。
+	1.查看版本历史：
+		git log [--pretty=oneline]
+	2.回滚上一个版本(HEAD^)
+		git reset --hard HEAD^
+	3.回滚指定版本
+		git reset --hard 版本号
+	4.回滚后想再回到最新版本
+		git reflog
+	
+		

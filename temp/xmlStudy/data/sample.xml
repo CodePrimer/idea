@@ -1,0 +1,16 @@
+<region id="850000000000">
+	<province id="610000000000">
+		<city id="xx000000000"/>
+		<city id="qq0000000000">
+			<county id="zz0000000000"/>
+		</city>
+	</province>
+	<province id="340000000000">
+		<city id="yy0000000000"/>
+	</province>
+	<province id="820000000000">
+		<city id="uu000000000">
+			<county id="ff0000000000"/>
+		</city>
+	</province>
+</region>
