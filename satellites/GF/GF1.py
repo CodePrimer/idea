@@ -52,14 +52,28 @@ class GF(object):
 
     # GF辐射定标参数文件
     RAD_CORRECT_PARAM = os.path.join(os.path.dirname(__file__), 'RadCorrectParam_GF.json')
+
+    # 6s大气校正exe路径
     SIXS_EXE = os.path.join(os.path.dirname(__file__), '6S', '6s.exe')
+
+    # TODO 删除
     FILE_SUFFIX = {'GF1_PMS1': '-MSS1', 'GF1_PMS2': '-MSS2', 'GF1_WFV1': '', 'GF1_WFV2': '', 'GF1_WFV3': '',
                    'GF1_WFV4': '', 'GF1B_PMS': '-MUX', 'GF1C_PMS': '-MUX', 'GF1D_PMS': '-MUX', 'GF2_PMS1': '-MSS1',
                    'GF2_PMS2': '-MSS2'}
+    # 波长范围
     WAVE_RANGE = [[0.45, 0.52],
                   [0.52, 0.59],
                   [0.63, 0.69],
                   [0.77, 0.89]]
+
+    # 解压缩文件路径
+    FILE_PATH = 'FILE_PATH'
+
+    # 解压缩文件传感器类型
+    FILE_SENSOR = 'FILE_SENSOR'
+
+    # 解压缩文件后缀
+    FILE_EXT = 'FILE_EXT'
 
     def __init__(self, inputPath, tempDir, outputPath, logPath=None):
         # 输入信息
@@ -80,7 +94,7 @@ class GF(object):
 
         # 中间数据
         self.uncompressDir = None   # 解压文件夹根目录
-        self.uncompressFile = {}  # dict:解压后文件清单 格式: {'文件名': {'path': '文件全路径'}, 'type': '镜头名', 'ext': '文件后缀名' }
+        self.uncompressFile = {}    # dict:解压后文件清单
         self.radCorrectParam = {}   # dict:辐射定标参数 {'gain':[], 'offset':[]}
         self.atmCorrectParam = {}   # dict:6s大气校正参数 {'xa': [], 'xb': [], 'xc': []}
         self.noProjTifPath = None   # 中间生成的未投影文件路径
@@ -159,27 +173,42 @@ class GF(object):
             zFile = zipfile.ZipFile(self.inputPath, 'r')
             for f in zFile.namelist():
                 zFile.extract(f, self.uncompressDir)
-                self.uncompressFile[f] = {'path': os.path.join(self.uncompressDir, f),
-                                          'ext': os.path.splitext(f)[1],
-                                          'type': f.replace(self.basename, '').replace(os.path.splitext(f)[1], '')
+                tmpValue = f.replace(self.basename, '').replace(os.path.splitext(f)[1], '')
+                if '-' in tmpValue:
+                    fileSensor = tmpValue.replace('-', '')
+                else:
+                    fileSensor = 'UNKNOWN'
+                self.uncompressFile[f] = {GF.FILE_PATH: os.path.join(self.uncompressDir, f),
+                                          GF.FILE_EXT: os.path.splitext(f)[1],
+                                          GF.FILE_SENSOR: fileSensor
                                           }
         elif tarfile.is_tarfile(self.inputPath):
             self.logObj.info("压缩文件格式为tar，开始解压...")
             tFile = tarfile.open(self.inputPath)
             for f in tFile.getnames():
                 tFile.extract(f, self.uncompressDir)
-                self.uncompressFile[f] = {'path': os.path.join(self.uncompressDir, f),
-                                          'ext': os.path.splitext(f)[1],
-                                          'type': f.replace(self.basename, '').replace(os.path.splitext(f)[1], '')
+                tmpValue = f.replace(self.basename, '').replace(os.path.splitext(f)[1], '')
+                if '-' in tmpValue:
+                    fileSensor = tmpValue.replace('-', '')
+                else:
+                    fileSensor = 'UNKNOWN'
+                self.uncompressFile[f] = {GF.FILE_PATH: os.path.join(self.uncompressDir, f),
+                                          GF.FILE_EXT: os.path.splitext(f)[1],
+                                          GF.FILE_SENSOR: fileSensor
                                           }
         elif rarfile.is_rarfile(self.inputPath):
             self.logObj.info("压缩文件格式为rar，开始解压...")
             rFile = rarfile.RarFile(self.inputPath, mode='r')
             for f in rFile.namelist():
                 rFile.extract(f, self.uncompressDir)
-                self.uncompressFile[f] = {'path': os.path.join(self.uncompressDir, f),
-                                          'ext': os.path.splitext(f)[1],
-                                          'type': f.replace(self.basename, '').replace(os.path.splitext(f)[1], '')
+                tmpValue = f.replace(self.basename, '').replace(os.path.splitext(f)[1], '')
+                if '-' in tmpValue:
+                    fileSensor = tmpValue.replace('-', '')
+                else:
+                    fileSensor = 'UNKNOWN'
+                self.uncompressFile[f] = {GF.FILE_PATH: os.path.join(self.uncompressDir, f),
+                                          GF.FILE_EXT: os.path.splitext(f)[1],
+                                          GF.FILE_SENSOR: fileSensor
                                           }
         else:
             self.logObj.error("无法识别的压缩文件格式！")
@@ -199,7 +228,6 @@ class GF(object):
 
     def atmosphericCorrection(self):
         """获取大气校正参数并进行计算"""
-        # 不同卫星传感器解压后多余的文件后缀
         satSor = self.satellite + '_' + self.sensor
         if satSor not in GF.FILE_SUFFIX.keys():
             self.logObj.error("无法识别的卫星传感器标识！")
@@ -208,7 +236,14 @@ class GF(object):
         if xmlName not in self.uncompressFile.keys():
             self.logObj.error("未找到对应xml文件！")
             return False
-        xmlPath = self.uncompressFile[xmlName]['path']
+
+        # xml文件
+        for key in self.uncompressFile.keys():
+            if self.uncompressFile[key][GF.FILE_EXT] != '.xml':
+                continue
+
+
+        xmlPath = self.uncompressFile[xmlName][GF.FILE_PATH]
         # 解析xml获取大气校正所需参数
         dom = xml.dom.minidom.parse(xmlPath)
         root = dom.documentElement
@@ -332,7 +367,7 @@ class GF(object):
 
         satSor = self.satellite + '_' + self.sensor
         tifName = self.basename + GF.FILE_SUFFIX[satSor] + '.tiff'
-        tifPath = self.uncompressFile[tifName]['path']
+        tifPath = self.uncompressFile[tifName][GF.FILE_PATH]
         inDs = gdal.Open(tifPath)
         inWidth = inDs.RasterXSize
         inHeight = inDs.RasterYSize
@@ -359,7 +394,7 @@ class GF(object):
         if rpcName not in self.uncompressFile.keys():
             self.logObj.error("未找到对应rpb文件！")
             return False
-        rpcPath = self.uncompressFile[rpcName]['path']
+        rpcPath = self.uncompressFile[rpcName][GF.FILE_PATH]
         copyName = os.path.basename(self.noProjTifPath).replace('.tiff', '.rpb')
         self.rpcCopyPath = os.path.join(self.tempDir, copyName)
         shutil.copyfile(rpcPath, self.rpcCopyPath)
@@ -396,8 +431,8 @@ class GF(object):
 
 if __name__ == '__main__':
 
-    inputPath = r'F:\zktq\围网养殖\连云港围网养殖2\GF2_PMS1_E119.4_N34.7_20200319_L1A0004683339.tar.gz'
-    tempDir = r'C:\Users\Think\Desktop\temp'
+    inputPath = r'E:\Data\GF\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615.zip'
+    tempDir = r'C:\Users\Administrator\Desktop\temp'
     outputPath = 'None'
 
     gfObj = GF(inputPath, tempDir, outputPath)
@@ -405,7 +440,8 @@ if __name__ == '__main__':
     gfObj.doInit()
 
     # 1.解压文件
-    gfObj.uncompress()
+    # gfObj.uncompress()
+    gfObj.uncompressFile = {'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.tiff': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.tiff', 'FILE_EXT': '.tiff', 'FILE_SENSOR': 'MUX1'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.xml': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.xml', 'FILE_EXT': '.xml', 'FILE_SENSOR': 'MUX1'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1_thumb.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1_thumb.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'MUX1_thumb'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'MUX2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.rpb': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.rpb', 'FILE_EXT': '.rpb', 'FILE_SENSOR': 'MUX2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.tiff': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.tiff', 'FILE_EXT': '.tiff', 'FILE_SENSOR': 'MUX2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.xml': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.xml', 'FILE_EXT': '.xml', 'FILE_SENSOR': 'MUX2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2_thumb.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2_thumb.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'MUX2_thumb'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'PAN1'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.rpb': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.rpb', 'FILE_EXT': '.rpb', 'FILE_SENSOR': 'PAN1'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.tiff': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.tiff', 'FILE_EXT': '.tiff', 'FILE_SENSOR': 'PAN1'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.xml': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.xml', 'FILE_EXT': '.xml', 'FILE_SENSOR': 'PAN1'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1_thumb.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1_thumb.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'PAN1_thumb'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'PAN2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.rpb': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.rpb', 'FILE_EXT': '.rpb', 'FILE_SENSOR': 'PAN2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.tiff': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.tiff', 'FILE_EXT': '.tiff', 'FILE_SENSOR': 'PAN2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.xml': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.xml', 'FILE_EXT': '.xml', 'FILE_SENSOR': 'PAN2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2_thumb.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2_thumb.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'PAN2_thumb'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615_QA.tiff': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615_QA.tiff', 'FILE_EXT': '.tiff', 'FILE_SENSOR': 'UNKNOWN'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'MUX1'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.rpb': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.rpb', 'FILE_EXT': '.rpb', 'FILE_SENSOR': 'MUX1'}}
 
     # 2.辐射定标参数
     gfObj.radiometricCorrection()
