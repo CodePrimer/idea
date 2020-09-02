@@ -34,16 +34,18 @@ if __name__ == '__main__':
     ftp.login('puusadmin', 'Shinetek_fy3')
     print(ftp.welcome)
     root_dir = '/PUUSDATA/NPP/VIIRS/L1/2020/07'     # FTP资源路径
-    copy_root_dir = '/data/model/input/satellite/L1B/NPP-VIIRS'
+    copy_root_dir = '/home/wangbin/data'
     ftp.cwd(root_dir)
     day_list = ftp.nlst()
     for d in day_list:
+        if d != '22':
+            continue
         day_path = os.path.join(root_dir, d)
         ftp.cwd(day_path)
         time_list = ftp.nlst()
         for t in time_list:
-            if int(t[0:2]) < 11:
-                continue
+            # if int(t[0:2]) < 11:
+            #     continue
             time_path = os.path.join(day_path, t)
             ftp.cwd(time_path)
             file_list = ftp.nlst(time_path)

@@ -17,49 +17,14 @@ import gdal
 from unrar import rarfile
 
 
-class Logger(object):
-    def __init__(self, logPath):
-        # 创建一个logger
-        self.logger = logging.getLogger()
-        self.logger.setLevel(logging.DEBUG)
-
-        # 创建一个handler，用于写入日志文件
-        fh = logging.FileHandler(logPath, mode='w', encoding='utf-8')  # 不拆分日志文件，a指追加模式,w为覆盖模式
-        fh.setLevel(logging.DEBUG)
-
-        # 创建一个handler，用于将日志输出到控制台
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
-
-        # 定义handler的输出格式
-        formatter = logging.Formatter(
-            "%(asctime)s %(filename)s[%(funcName)s line:%(lineno)d] %(levelname)s %(message)s",
-            datefmt='%Y-%m-%d %H:%M:%S')
-        fh.setFormatter(formatter)
-        ch.setFormatter(formatter)
-
-        # 给logger添加handler
-        self.logger.addHandler(fh)
-        self.logger.addHandler(ch)
-
-    @property
-    def get_log(self):
-        """定义一个函数，回调logger实例"""
-        return self.logger
-
-
 class GF(object):
 
     # GF辐射定标参数文件
     RAD_CORRECT_PARAM = os.path.join(os.path.dirname(__file__), 'RadCorrectParam_GF.json')
 
     # 6s大气校正exe路径
-    SIXS_EXE = os.path.join(os.path.dirname(__file__), '6S', '6s.exe')
+    SIXS_EXE = os.path.join(os.path.dirname(__file__), '6S_IDL_NOBRDF', 'main.exe')
 
-    # TODO 删除
-    FILE_SUFFIX = {'GF1_PMS1': '-MSS1', 'GF1_PMS2': '-MSS2', 'GF1_WFV1': '', 'GF1_WFV2': '', 'GF1_WFV3': '',
-                   'GF1_WFV4': '', 'GF1B_PMS': '-MUX', 'GF1C_PMS': '-MUX', 'GF1D_PMS': '-MUX', 'GF2_PMS1': '-MSS1',
-                   'GF2_PMS2': '-MSS2'}
     # 波长范围
     WAVE_RANGE = [[0.45, 0.52],
                   [0.52, 0.59],
@@ -75,7 +40,7 @@ class GF(object):
     # 解压缩文件后缀
     FILE_EXT = 'FILE_EXT'
 
-    def __init__(self, inputPath, tempDir, outputPath, logPath=None):
+    def __init__(self, inputPath, tempDir, outputDir, logPath=None):
         # 输入信息
         self.inputPath = inputPath  # str:输入文件路径
         self.tempDir = tempDir  # str:临时文件夹路径
@@ -90,23 +55,23 @@ class GF(object):
         self.month = None  # str:影像获取时间-月
         self.day = None  # str:影像获取时间-日
         self.logPath = logPath  # str:日志文件路径
-        self.logObj = None  # str:日志文件对象
 
         # 中间数据
-        self.uncompressDir = None   # 解压文件夹根目录
-        self.uncompressFile = {}    # dict:解压后文件清单
-        self.radCorrectParam = {}   # dict:辐射定标参数 {'gain':[], 'offset':[]}
-        self.atmCorrectParam = {}   # dict:6s大气校正参数 {'xa': [], 'xb': [], 'xc': []}
-        self.noProjTifPath = None   # 中间生成的未投影文件路径
-        self.rpcCopyPath = None     # 复制rpb文件路径
-        self.centerTime = None      # 数据获取时间
+        self.uncompressDir = None           # 解压文件夹根目录
+        self.uncompressFileList = []        # list:解压后文件名
+        self.uncompressFileClassify = {}    # dict:解压后按照传感器文件清单
+        self.radCorrectParam = {}           # dict:辐射定标参数 {'gain':[], 'offset':[]}
+        self.atmCorrectParam = {}           # dict:6s大气校正参数 {'xa': [], 'xb': [], 'xc': []}
+        # self.noProjTifPath = None           # 中间生成的未投影文件路径
+        # self.rpcCopyPath = None             # 复制rpb文件路径
+        self.centerTime = None              # 数据获取时间
         # 输出信息
-        self.outputPath = outputPath  # str:输出文件路径
+        self.outputDir = outputDir         # str:输出文件路径
 
     def doInit(self):
         """
         类对象初始化操作
-        1.初始化Log文件
+        1.初始化Log文件  DELETE
         2.有效性检查
             2.1 输入文件是否存在
             2.2 输入文件名正则是否符合规则
@@ -114,44 +79,37 @@ class GF(object):
         3.获取文件基本信息
         """
 
-        # 1.初始化Log文件
-        if self.logPath is None:
-            self.logPath = os.path.join(os.path.dirname(__file__), os.path.basename(__file__).split('.')[0] + ".log")
-        else:
-            logDir = os.path.dirname(self.logPath)
-            try:
-                if not os.path.isdir(logDir):
-                    os.makedirs(logDir)
-            except Exception as e:
-                print(e)
-                return False
-        self.logObj = Logger(self.logPath).get_log
-
         # 2.有效性检查
         # 2.1 输入文件是否存在
         if not os.path.exists(self.inputPath):
-            self.logObj.error("输入文件不存在！")
+            print("输入文件不存在！")
             return False
         # 2.2 输入文件名正则是否符合规则 TODO 暂时只做下划线分割长度判断
-        if self.inputPath.endswith('.zip'):
-            self.basename = os.path.basename(self.inputPath).replace('.zip', '')
-            self.ext = '.zip'
-        elif self.inputPath.endswith('.tar.gz'):
-            self.basename = os.path.basename(self.inputPath).replace('.tar.gz', '')
-            self.ext = '.tar.gz'
+        if os.path.isfile(self.inputPath):
+            if self.inputPath.endswith('.zip'):
+                self.basename = os.path.basename(self.inputPath).replace('.zip', '')
+                self.ext = '.zip'
+            elif self.inputPath.endswith('.tar.gz'):
+                self.basename = os.path.basename(self.inputPath).replace('.tar.gz', '')
+                self.ext = '.tar.gz'
+            else:
+                print("未知的文件格式！")
+                return False
+        elif os.path.isdir(self.inputPath):
+            self.basename = os.path.basename(self.inputPath)
         else:
-            self.logObj.error("未知的文件格式！")
             return False
         filenameInfo = self.basename.split('_')
         if len(filenameInfo) != 6:
-            self.logObj.error("文件名格式错误！")
+            print("文件名格式错误！")
             return False
         # 2.3 创建临时文件夹
         try:
             if not os.path.isdir(self.tempDir):
-                os.makedirs(self.tempDir)
+                pass
+                # os.makedirs(self.tempDir)
         except Exception as e:
-            self.logObj.error("创建临时文件失败！")
+            print.error("创建临时文件失败！")
             return False
 
         # 3.获取文件基本信息
@@ -165,55 +123,81 @@ class GF(object):
 
         return True
 
+    def classifyUncompressFile(self):
+        for each in self.uncompressFileList:
+            filePath = each
+            fileName = os.path.basename(each)
+            fileExt = os.path.splitext(fileName)[1]
+
+            tmpValue = fileName.replace(self.basename, '').replace(os.path.splitext(fileName)[1], '')
+            if '-' in tmpValue and len(tmpValue.split('_')) == 1:
+                fileSensor = tmpValue.replace('-', '')
+            else:
+                continue
+            if fileSensor not in self.uncompressFileClassify.keys():
+                self.uncompressFileClassify[fileSensor] = {'.xml': '', '.rpb': '', '.tiff': ''}
+            if fileExt == '.xml':
+                self.uncompressFileClassify[fileSensor]['.xml'] = filePath
+            elif fileExt == '.rpb':
+                self.uncompressFileClassify[fileSensor]['.rpb'] = filePath
+            elif fileExt == '.tiff':
+                self.uncompressFileClassify[fileSensor]['.tiff'] = filePath
+            else:
+                continue
+
+    def classifyFile(self):
+        fileList = os.listdir(self.inputPath)
+        for f in fileList:
+            filePath = os.path.join(self.inputPath, f)
+            fileName = f
+            fileExt = os.path.splitext(fileName)[1]
+
+            tmpValue = fileName.replace(self.basename, '').replace(os.path.splitext(fileName)[1], '')
+            if '-' in tmpValue and len(tmpValue.split('_')) == 1:
+                fileSensor = tmpValue.replace('-', '')
+            else:
+                continue
+            if fileSensor not in self.uncompressFileClassify.keys():
+                self.uncompressFileClassify[fileSensor] = {'.xml': '', '.rpb': '', '.tiff': ''}
+            if fileExt == '.xml':
+                self.uncompressFileClassify[fileSensor]['.xml'] = filePath
+            elif fileExt == '.rpb':
+                self.uncompressFileClassify[fileSensor]['.rpb'] = filePath
+            elif fileExt == '.tiff':
+                self.uncompressFileClassify[fileSensor]['.tiff'] = filePath
+            else:
+                continue
+
     def uncompress(self):
         """解压缩文件"""
         self.uncompressDir = os.path.join(self.tempDir, self.basename)
         if zipfile.is_zipfile(self.inputPath):
-            self.logObj.info("压缩文件格式为zip，开始解压...")
+            print("压缩文件格式为zip，开始解压...")
             zFile = zipfile.ZipFile(self.inputPath, 'r')
             for f in zFile.namelist():
                 zFile.extract(f, self.uncompressDir)
-                tmpValue = f.replace(self.basename, '').replace(os.path.splitext(f)[1], '')
-                if '-' in tmpValue:
-                    fileSensor = tmpValue.replace('-', '')
-                else:
-                    fileSensor = 'UNKNOWN'
-                self.uncompressFile[f] = {GF.FILE_PATH: os.path.join(self.uncompressDir, f),
-                                          GF.FILE_EXT: os.path.splitext(f)[1],
-                                          GF.FILE_SENSOR: fileSensor
-                                          }
+                self.uncompressFileList.append(os.path.join(self.uncompressDir, f))
+
         elif tarfile.is_tarfile(self.inputPath):
-            self.logObj.info("压缩文件格式为tar，开始解压...")
+            print("压缩文件格式为tar，开始解压...")
             tFile = tarfile.open(self.inputPath)
             for f in tFile.getnames():
                 tFile.extract(f, self.uncompressDir)
-                tmpValue = f.replace(self.basename, '').replace(os.path.splitext(f)[1], '')
-                if '-' in tmpValue:
-                    fileSensor = tmpValue.replace('-', '')
-                else:
-                    fileSensor = 'UNKNOWN'
-                self.uncompressFile[f] = {GF.FILE_PATH: os.path.join(self.uncompressDir, f),
-                                          GF.FILE_EXT: os.path.splitext(f)[1],
-                                          GF.FILE_SENSOR: fileSensor
-                                          }
+                self.uncompressFileList.append(os.path.join(self.uncompressDir, f))
+
         elif rarfile.is_rarfile(self.inputPath):
-            self.logObj.info("压缩文件格式为rar，开始解压...")
+            print("压缩文件格式为rar，开始解压...")
             rFile = rarfile.RarFile(self.inputPath, mode='r')
             for f in rFile.namelist():
                 rFile.extract(f, self.uncompressDir)
-                tmpValue = f.replace(self.basename, '').replace(os.path.splitext(f)[1], '')
-                if '-' in tmpValue:
-                    fileSensor = tmpValue.replace('-', '')
-                else:
-                    fileSensor = 'UNKNOWN'
-                self.uncompressFile[f] = {GF.FILE_PATH: os.path.join(self.uncompressDir, f),
-                                          GF.FILE_EXT: os.path.splitext(f)[1],
-                                          GF.FILE_SENSOR: fileSensor
-                                          }
+                self.uncompressFileList.append(os.path.join(self.uncompressDir, f))
         else:
-            self.logObj.error("无法识别的压缩文件格式！")
+            print("无法识别的压缩文件格式！")
             return False
-        self.logObj.info("解压缩文件成功.")
+
+        self.classifyUncompressFile()   # 整理解压缩文件
+
+        print("解压缩文件成功.")
 
     def radiometricCorrection(self):
         """辐射定标，为了减少IO这里先获取辐射定标参数"""
@@ -224,26 +208,19 @@ class GF(object):
         else:
             param = jsonData[self.satellite][self.sensor]['latest']
         self.radCorrectParam = param
-        self.logObj.info("获取辐射定标参数成功...")
+        print("获取辐射定标参数成功...")
 
     def atmosphericCorrection(self):
         """获取大气校正参数并进行计算"""
-        satSor = self.satellite + '_' + self.sensor
-        if satSor not in GF.FILE_SUFFIX.keys():
-            self.logObj.error("无法识别的卫星传感器标识！")
+        xmlPath = ''
+        for key in self.uncompressFileClassify.keys():
+            if key in ['MUX', 'MUX1', 'MUX2', 'MSS1', 'MSS2']:
+                xmlPath = self.uncompressFileClassify[key]['.xml']
+                break
+        if xmlPath == '':
+            print("未找到对应xml文件！")
             return False
-        xmlName = self.basename + GF.FILE_SUFFIX[satSor] + '.xml'
-        if xmlName not in self.uncompressFile.keys():
-            self.logObj.error("未找到对应xml文件！")
-            return False
 
-        # xml文件
-        for key in self.uncompressFile.keys():
-            if self.uncompressFile[key][GF.FILE_EXT] != '.xml':
-                continue
-
-
-        xmlPath = self.uncompressFile[xmlName][GF.FILE_PATH]
         # 解析xml获取大气校正所需参数
         dom = xml.dom.minidom.parse(xmlPath)
         root = dom.documentElement
@@ -299,7 +276,7 @@ class GF(object):
             self.atmCorrectParam['xa'].append(xa)
             self.atmCorrectParam['xb'].append(xb)
             self.atmCorrectParam['xc'].append(xc)
-        self.logObj.info("获取6S大气校正参数成功...")
+        print("获取6S大气校正参数成功...")
 
     def getSixsParams(self, mm, dd, SolarZenith, SolarAzimuth, SatelliteZenith, SatelliteAzimuth, lon, lat, wave):
         """运行6s模型"""
@@ -338,7 +315,7 @@ class GF(object):
         out_txt = out_txt.replace('\\', '/')
         sixsDir = os.path.dirname(GF.SIXS_EXE).replace('\\', '/')
         cmdStr1 = 'cd ' + sixsDir
-        cmdStr2 = '6s.exe<in.txt>log'
+        cmdStr2 = 'main.exe<in.txt>sixs.out'
         os.system(cmdStr1 + ' && ' + cmdStr2)
         time.sleep(1)
         with open(out_txt, 'r') as (f):
@@ -357,105 +334,86 @@ class GF(object):
 
     def bandMath(self):
         """波段运算"""
-        self.logObj.info("开始波段运算，处理信息如下...")
-        self.logObj.info("卫星传感器类型：")
-        self.logObj.info(self.satellite + ' ' + self.sensor)
-        self.logObj.info("辐射定标参数：")
-        self.logObj.info(self.radCorrectParam)
-        self.logObj.info("大气校正参数：")
-        self.logObj.info(self.atmCorrectParam)
+        print("开始波段运算")
 
-        satSor = self.satellite + '_' + self.sensor
-        tifName = self.basename + GF.FILE_SUFFIX[satSor] + '.tiff'
-        tifPath = self.uncompressFile[tifName][GF.FILE_PATH]
-        inDs = gdal.Open(tifPath)
-        inWidth = inDs.RasterXSize
-        inHeight = inDs.RasterYSize
-        inBands = inDs.RasterCount
-        driver = gdal.GetDriverByName('GTiff')
-        self.noProjTifPath = os.path.join(self.tempDir, self.basename + '_noporj.tiff')
-        outDs = driver.Create(self.noProjTifPath, inWidth, inHeight, inBands, gdal.GDT_UInt16)
-        for i in range(4):
-            bandI = inDs.GetRasterBand(i+1).ReadAsArray()
-            bandTempI = bandI * self.radCorrectParam['gain'][i] + self.radCorrectParam['offset'][i]
-            xa = self.atmCorrectParam['xa'][i]
-            xb = self.atmCorrectParam['xb'][i]
-            xc = self.atmCorrectParam['xc'][i]
-            ref = (xa * bandTempI - xb) / (1 + xc * (xa * bandTempI - xb)) * 1000
-            outDs.GetRasterBand(i + 1).WriteArray(ref)
-        del outDs
-        self.logObj.info("完成波段运算...")
-        return True
+        for each in self.uncompressFileClassify.keys():
+            if each not in ['MUX', 'MUX1', 'MUX2', 'MSS1', 'MSS2']:
+                continue
+            else:
+                tifPath = self.uncompressFileClassify[each]['.tiff']
+                inDs = gdal.Open(tifPath)
+                inWidth = inDs.RasterXSize
+                inHeight = inDs.RasterYSize
+                inBands = inDs.RasterCount
+                driver = gdal.GetDriverByName('GTiff')
+                self.noProjTifPath = os.path.join(self.outputDir, os.path.basename(tifPath))
+                outDs = driver.Create(self.noProjTifPath, inWidth, inHeight, inBands, gdal.GDT_UInt16)
+                for i in range(4):
+                    bandI = inDs.GetRasterBand(i+1).ReadAsArray()
+                    bandTempI = bandI * self.radCorrectParam['gain'][i] + self.radCorrectParam['offset'][i]
+                    xa = self.atmCorrectParam['xa'][i]
+                    xb = self.atmCorrectParam['xb'][i]
+                    xc = self.atmCorrectParam['xc'][i]
+                    ref = (xa * bandTempI - xb) / (1 + xc * (xa * bandTempI - xb)) * 10000
+                    outDs.GetRasterBand(i + 1).WriteArray(ref)
+                outDs = None
+                print("完成波段运算...")
 
-    def project(self):
-        """rpc坐标转换"""
-        satSor = self.satellite + '_' + self.sensor
-        rpcName = self.basename + GF.FILE_SUFFIX[satSor] + '.rpb'
-        if rpcName not in self.uncompressFile.keys():
-            self.logObj.error("未找到对应rpb文件！")
-            return False
-        rpcPath = self.uncompressFile[rpcName][GF.FILE_PATH]
-        copyName = os.path.basename(self.noProjTifPath).replace('.tiff', '.rpb')
-        self.rpcCopyPath = os.path.join(self.tempDir, copyName)
-        shutil.copyfile(rpcPath, self.rpcCopyPath)
+                # 拷贝文件
+                rpcPath = self.uncompressFileClassify[each]['.rpb']
+                rpcCopyPath = os.path.join(self.outputDir, os.path.basename(rpcPath))
+                shutil.copyfile(rpcPath, rpcCopyPath)
 
-        # TODO 输出文件命名
-        if 'GF1' in self.satellite and 'PMS' in self.sensor:
-            res = '8'
-        elif 'GF1' in self.satellite and 'WFV' in self.sensor:
-            res = '16'
-        elif self.satellite == 'GF2' and 'PMS' in self.sensor:
-            res = '4'
-        dt = datetime.datetime.strptime(self.centerTime, "%Y-%m-%d %H:%M:%S")
-        issue = dt.strftime("%Y%m%d%H%M%S")
-        outputName = '_'.join([self.satellite, self.sensor, res, 'L2', issue, '000', '003']) + '.tif'
-        self.outputPath = os.path.join(r'C:\Users\Think\Desktop\output', outputName)
-        gdal.Warp(self.outputPath, self.noProjTifPath, rpc=True)
-        self.logObj.info("地理校正成功...")
+                xmlPath = self.uncompressFileClassify[each]['.xml']
+                xmlCopyPath = os.path.join(self.outputDir, os.path.basename(xmlPath))
+                shutil.copyfile(xmlPath, xmlCopyPath)
+                print("完成rpc和xml拷贝...")
+
         return True
 
     def deleteTempFile(self):
         """删除临时文件"""
         try:
-            # 1.解压缩文件夹
-            shutil.rmtree(self.uncompressDir)
-            # 2.noproj文件
-            os.remove(self.noProjTifPath)
-            os.remove(self.rpcCopyPath)
-            self.logObj.info("删除临时文件成功")
+            if os.path.exists(self.tempDir):
+                shutil.rmtree(self.tempDir)
+                print("删除临时文件成功")
             return True
         except Exception as e:
-            self.logObj.error(e)
             return False
+
+    @staticmethod
+    def main(inputPath, outputDir):
+
+        tempDir = os.path.join(os.path.dirname(inputPath), '_temp' + str(int(time.time() * 1000)))
+        if not os.path.exists(tempDir):
+            pass
+            # os.makedirs(tempDir)
+
+        gfObj = GF(inputPath, tempDir, outputDir)
+
+        gfObj.doInit()
+
+        # 1.解压文件
+        if os.path.isdir(gfObj.inputPath):
+            gfObj.classifyFile()
+        else:
+            gfObj.uncompress()
+        # 2.辐射定标参数
+        gfObj.radiometricCorrection()
+
+        # 3.大气校正参数
+        gfObj.atmosphericCorrection()
+
+        # 4.波段运算
+        gfObj.bandMath()
+
+        # 6.删除临时文件
+        gfObj.deleteTempFile()
 
 
 if __name__ == '__main__':
 
-    inputPath = r'E:\Data\GF\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615.zip'
-    tempDir = r'C:\Users\Administrator\Desktop\temp'
-    outputPath = 'None'
-
-    gfObj = GF(inputPath, tempDir, outputPath)
-
-    gfObj.doInit()
-
-    # 1.解压文件
-    # gfObj.uncompress()
-    gfObj.uncompressFile = {'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.tiff': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.tiff', 'FILE_EXT': '.tiff', 'FILE_SENSOR': 'MUX1'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.xml': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.xml', 'FILE_EXT': '.xml', 'FILE_SENSOR': 'MUX1'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1_thumb.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1_thumb.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'MUX1_thumb'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'MUX2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.rpb': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.rpb', 'FILE_EXT': '.rpb', 'FILE_SENSOR': 'MUX2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.tiff': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.tiff', 'FILE_EXT': '.tiff', 'FILE_SENSOR': 'MUX2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.xml': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2.xml', 'FILE_EXT': '.xml', 'FILE_SENSOR': 'MUX2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2_thumb.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX2_thumb.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'MUX2_thumb'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'PAN1'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.rpb': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.rpb', 'FILE_EXT': '.rpb', 'FILE_SENSOR': 'PAN1'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.tiff': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.tiff', 'FILE_EXT': '.tiff', 'FILE_SENSOR': 'PAN1'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.xml': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1.xml', 'FILE_EXT': '.xml', 'FILE_SENSOR': 'PAN1'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1_thumb.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN1_thumb.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'PAN1_thumb'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'PAN2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.rpb': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.rpb', 'FILE_EXT': '.rpb', 'FILE_SENSOR': 'PAN2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.tiff': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.tiff', 'FILE_EXT': '.tiff', 'FILE_SENSOR': 'PAN2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.xml': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2.xml', 'FILE_EXT': '.xml', 'FILE_SENSOR': 'PAN2'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2_thumb.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-PAN2_thumb.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'PAN2_thumb'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615_QA.tiff': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615_QA.tiff', 'FILE_EXT': '.tiff', 'FILE_SENSOR': 'UNKNOWN'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.jpg': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.jpg', 'FILE_EXT': '.jpg', 'FILE_SENSOR': 'MUX1'}, 'GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.rpb': {'FILE_PATH': 'C:\\Users\\Administrator\\Desktop\\temp\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615\\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615-MUX1.rpb', 'FILE_EXT': '.rpb', 'FILE_SENSOR': 'MUX1'}}
-
-    # 2.辐射定标参数
-    gfObj.radiometricCorrection()
-
-    # 3.大气校正参数
-    gfObj.atmosphericCorrection()
-
-    # 4.波段运算
-    gfObj.bandMath()
-
-    # 5.rpc投影
-    gfObj.project()
-
-    # 6.删除临时文件
-    gfObj.deleteTempFile()
-
-    print('Finish')
+    inputPath = r'E:\Data\GF\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615'
+    # tempDir = r'C:\Users\Administrator\Desktop\temp'
+    outputDir = r'C:\Users\Administrator\Desktop\output\GF1B_PMS_E109.9_N20.7_20191211_L1A1227738615'
+    GF.main(inputPath, outputDir)

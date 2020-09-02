@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<DataSource>
+    <GF1_PMS1>
+        <Satellite>GF1</Satellite>
+        <Sensor>PMS1</Sensor>
+        <BandList>B01,B02,B03,B04,PAN</BandList>
+        <WaveLength>
+            <B01>0.45,0.52</B01>
+            <B02>0.52,0.59</B02>
+            <B03>0.63,0.69</B03>
+            <B04>0.77,0.89</B04>
+            <PAN>0.45,0.9</PAN>
+        </WaveLength>
+        <RadCorrect>
+            <B01>0.45,0.52</B01>
+            <B02>0.52,0.59</B02>
+            <B03>0.63,0.69</B03>
+            <B04>0.77,0.89</B04>
+            <PAN>0.45,0.9</PAN>
+        </RadCorrect>
+    </GF1_PMS1>
+</DataSource>

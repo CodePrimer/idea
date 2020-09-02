@@ -119,11 +119,11 @@ def test_syspath():
     sys.path是python的搜索模块的路径集，是一个list
 
     """
-    print sys.path
+    print(sys.path)
 
     # sys.path.append(path)添加指定搜索路径
     sys.path.append("D:/PATH")
-    print sys.path
+    print(sys.path)
 
 
 def test_sysmodules():
@@ -133,7 +133,6 @@ def test_sysmodules():
         print("os module be import. ")
 
 
-
 if __name__ == "__main__":
 
     # cmd参数输入
@@ -141,8 +140,6 @@ if __name__ == "__main__":
 
     # 编译器模块搜索路径
     test_syspath()
-
-    sys.modules
 
 
     print("====== process finished ======")
