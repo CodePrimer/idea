@@ -1,7 +1,7 @@
 #! usr/bin/env python
 # -*- coding:utf-8 -*-
 # created by zhaoguanhua 2017/10/9
-# AtmosphericCorrection for Sentinel-2A
+# AtmosphericCorrection for Sentinel2-2A
 
 import glob
 import os

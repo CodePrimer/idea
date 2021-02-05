@@ -1,6 +1,6 @@
 # !/usr/bin/python3
 # -*- coding: utf-8  -*-
-# -*- author: htht -*-
+# -*- author: wangbin -*-
 
 import xml.dom.minidom
 from xml.dom.minidom import Document
@@ -134,6 +134,19 @@ class XmlUtil(object):
 
 if __name__ == "__main__":
 
-    domTest = XmlUtil.createDom()
-    XmlUtil.createRootNode()
+    xmlPath = r'E:\Data\temp\LC08_L1TP_119038_20190226_20200829_02_T1\LC08_L1TP_119038_20190226_20200829_02_T1_MTL.xml'
+    dom = xml.dom.minidom.parse(xmlPath)
+    # 获取根节点
+    rootNode = dom.documentElement
+    productContentsNode = dom.getElementsByTagName('PRODUCT_CONTENTS')[0]
+    for eachNode in productContentsNode.childNodes:
+        # print('nodeType:', eachNode.nodeType)
+        # print('nodeName:', eachNode.nodeName)
+        # print('nodeValue:', eachNode.nodeValue)
+        if eachNode.nodeType == 1:
+            # 文本节点
+            text = eachNode.childNodes[0].nodeValue
+            print(eachNode.nodeName + ':' + text)
+
+    print('Finish')
 

@@ -2,8 +2,9 @@
 # @Author : wangbin
 # @Time : 2020/8/18 20:07
 
-import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
 
 def RGB_to_Hex(rgb):
     RGB = rgb.split(',')  # 将RGB格式划分开来
@@ -36,32 +37,40 @@ def Hex_to_RGB(hex):
     return rgb, [r, g, b]
 
 
-def gradient_color(color_list, color_sum=700):
+def gradient_color(color_list, color_sum=1000):
     color_center_count = len(color_list)
 
     color_sub_count = int(color_sum / (color_center_count - 1))
     color_index_start = 0
     color_map = []
     for color_index_end in range(1, color_center_count):
-        color_rgb_start = Hex_to_RGB(color_list[color_index_start])[1]
-        color_rgb_end = Hex_to_RGB(color_list[color_index_end])[1]
+        color_rgb_start = color_list[color_index_start]
+        color_rgb_end = color_list[color_index_end]
+        # color_rgb_start = Hex_to_RGB(color_list[color_index_start])[1]
+        # color_rgb_end = Hex_to_RGB(color_list[color_index_end])[1]
         r_step = (color_rgb_end[0] - color_rgb_start[0]) / color_sub_count
         g_step = (color_rgb_end[1] - color_rgb_start[1]) / color_sub_count
         b_step = (color_rgb_end[2] - color_rgb_start[2]) / color_sub_count
 
         now_color = color_rgb_start
         color_map.append(RGB_list_to_Hex(now_color))
-    for color_index in range(1, color_sub_count):
-        now_color = [now_color[0] + r_step, now_color[1] + g_step, now_color[2] + b_step]
-        color_map.append(RGB_list_to_Hex(now_color))
-        color_index_start = color_index_end
-        return color_map
+        for color_index in range(1, color_sub_count):
+            now_color = [now_color[0] + r_step, now_color[1] + g_step, now_color[2] + b_step]
+            color_map.append(RGB_list_to_Hex(now_color))
+            color_index_start = color_index_end
+    return color_map
 
 
 if __name__ == '__main__':
-    input_colors = ["#40FAFF", "#00EBEB", "#00EB00", "#FFC800", "#FC9600", "#FA0000", "#C800FA", "#FF64FF"]
-    # input_colors = ["#00e400", "#ffff00", "#ff7e00", "#ff0000", "#99004c", "#7e0023"]
-    colors = gradient_color(input_colors)
-    sns.palplot(colors)
-    # print(len(colors))
-    # plt.show()
+    input_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+    color_map_list = gradient_color(input_colors)
+
+    start_y = 0
+    rect_height = 0.001
+    fig, ax = plt.subplots(1)
+    for each in color_map_list:
+        rect = patches.Rectangle((0, start_y), 0.2, rect_height, facecolor=each)
+        start_y += rect_height
+        ax.add_patch(rect)
+    plt.show()
+    print('Finish')

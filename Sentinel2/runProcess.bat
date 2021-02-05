@@ -1,0 +1,1 @@
+cd D:/Miniconda3/Scripts && conda activate python38 && D:\Miniconda3\envs\python38\python.exe D:\share\Sentinel2Process\code\Sentinel2ProcessBatch.py 

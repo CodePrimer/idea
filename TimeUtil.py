@@ -97,6 +97,6 @@ if __name__ == "__main__":
     # b = TimeUtil.datetime_to_str(a, "%Y-%m-%d")
 
     # 1.年日转月日
-    dt = datetime.datetime.strptime("2020032", "%Y%j")
+    dt = datetime.datetime.strptime("2020324", "%Y%j")
     print(dt.strftime("%Y-%m-%d"))
     print("finish")

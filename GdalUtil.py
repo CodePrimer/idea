@@ -14,6 +14,46 @@ from ShapeFile import ShapeFile
 from ShapeUtil import ShapeUtil
 
 
+class GdalUtils(object):
+    """新版gdal工具类 去除自封装类的依赖"""
+
+    @staticmethod
+    def PolygonToRaster(in_path, out_path, x_res, y_res, field_name, out_bounds=None, no_data=65535):
+        """
+        面矢量转为栅格
+        :param in_path: str 输入矢量文件路径
+        :param out_path: str 输出栅格文件路径
+        :param x_res: float 输出栅格x向分辨率
+        :param y_res: float 输出栅格y向分辨率
+        :param field_name: str 栅格赋值的矢量字段名
+        :param out_bounds: tuple 输出栅格范围  [xmin, ymin, xmax, ymax]
+        :param no_data: int 无效值大小
+        :return:
+        """
+        try:
+            if not out_bounds:
+                gdal.SetConfigOption("GDAL_FILENAME_IS_UTF8", "NO")  # 为了支持中文路径，请添加
+                gdal.SetConfigOption("SHAPE_ENCODING", "GBK")  # 为了使属性表字段支持中文，请添加
+                ogr.RegisterAll()  # 注册所有的驱动
+                layer = ogr.Open(in_path, gdal.GA_ReadOnly).GetLayer(0)
+                shp_extent = layer.GetExtent()
+                out_bounds = (shp_extent[0], shp_extent[2], shp_extent[1], shp_extent[3])
+
+            options = gdal.RasterizeOptions(outputBounds=out_bounds, outputType=gdal.GDT_UInt16, noData=no_data,
+                                            attribute=field_name, useZ=False, xRes=x_res, yRes=y_res, format="GTiff")
+            ds = gdal.Rasterize(out_path, in_path, options=options)
+
+            if not ds:
+                return False
+            del ds
+            return True
+
+        except Exception as e:
+            print(e)
+            return False
+
+
+
 class Grid(object):
 
     """gdal插值工具类"""
@@ -414,7 +454,7 @@ class GdalUtil(object):
             return
 
     @staticmethod
-    def shp_rasterize(in_path, out_path, xres, yres, field_name):
+    def shp_rasterize(in_path, out_path, xres, yres, field_name, out_bounds=None, nodataValue=65535):
         """
         矢量文件栅格化
 
@@ -428,12 +468,12 @@ class GdalUtil(object):
         try:
             shp_obj = ShapeFile(in_path)
             shp_obj.readShp()
-
-            shp_extend = shp_obj.getExtent()
-            out_bounds = (shp_extend["xMin"], shp_extend["yMin"], shp_extend["xMax"], shp_extend["yMax"])
+            if not out_bounds:
+                shp_extend = shp_obj.getExtent()
+                out_bounds = (shp_extend["xMin"], shp_extend["yMin"], shp_extend["xMax"], shp_extend["yMax"])
 
             # outputBounds [xmin, ymin, xmax, ymax]
-            options = gdal.RasterizeOptions(outputBounds=out_bounds, outputType=gdal.GDT_UInt16, noData=65535,
+            options = gdal.RasterizeOptions(outputBounds=out_bounds, outputType=gdal.GDT_UInt16, noData=nodataValue,
                                             attribute=field_name, useZ=False, xRes=xres, yRes=yres, format="GTiff")
             ds = gdal.Rasterize(out_path, in_path, options=options)
 
@@ -783,3 +823,26 @@ class GdalUtil(object):
         except Exception as e:
             print(e)
             return False
+
+
+if __name__ == '__main__':
+    inFile = r'C:\Users\Administrator\Desktop\model\input\satellite\Sentinel3-OLCI-300\Sentinel3B_OLCI_L2_202010300952_300_0180_045_Clip.tif'
+    ds = gdal.Open(inFile)
+    width = ds.RasterXSize
+    height = ds.RasterYSize
+    bands = ds.RasterCount
+    proj = ds.GetProjection()
+    geoTrans = ds.GetGeoTransform()
+
+    outFile = r'C:\Users\Administrator\Desktop\model\input\satellite\Sentinel3-OLCI-300\a.tif'
+    driver = gdal.GetDriverByName("GTiff")
+    outds = driver.Create(outFile, width, height, bands, gdal.GDT_Float32)
+    outds.SetGeoTransform(geoTrans)
+    outds.SetProjection(proj)
+
+    for i in range(bands):
+        data = ds.GetRasterBand(i+1).ReadAsArray()
+        data[data < -1] = 65535
+        outds.GetRasterBand(i+1).WriteArray(data)
+    outds = None
+    print('Finish')

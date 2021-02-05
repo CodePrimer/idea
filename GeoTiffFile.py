@@ -91,8 +91,8 @@ class GeoTiffFile(object):
         """
         leftTopX = self.__geoTrans[0]
         leftTopY = self.__geoTrans[3]
-        rightDownX = leftTopX + self.__geoTrans[1] * (self.__width - 1)
-        rightDownY = leftTopY + self.__geoTrans[5] * (self.__height - 1)
+        rightDownX = leftTopX + self.__geoTrans[1] * (self.__width - 1)     # TODO
+        rightDownY = leftTopY + self.__geoTrans[5] * (self.__height - 1)    # TODO
         xMin = min([leftTopX, rightDownX])
         xMax = max([leftTopX, rightDownX])
         yMin = min([leftTopY, rightDownY])
@@ -166,24 +166,20 @@ class GeoTiffFile(object):
 if __name__ == "__main__":
 
     # 读取TIF 写出TIF
-    tifPath = r"C:\Users\Think\Desktop\ldf\FY3D_MERSI_WHOLE_GLL_L1_20190315_1519_1000M.ldf"
+    tifPath = r"C:\Users\Administrator\Desktop\model\output\621b37ac-ed93-11e9-b63f-0242ac110008\20201111135912\NPP_VIIRS_L2_202009061209_375_00_00_taihu_algae_ndvi.tif"
     tifObj = GeoTiffFile(tifPath)
     tifObj.readTif()
 
-    bandR = tifObj.getBandData(3)
-    bandIR = tifObj.getBandData(4)
-    ndvi = (bandIR * 1.0 - bandR)/(bandIR + bandR)
-
-    ds = tifObj.getDs()
-    data1 = ds.ReadAsArray()
-
-    outPath = r"C:\Users\Think\Desktop\test\fy3d.tif"
+    bandArray = tifObj.getBandData(0)
+    bandArray[0][0] = 0
+    bandArray[0][1] = 100
+    outPath = r"Z:\TP1_result\abc.tif"
 
     outTifObj = GeoTiffFile(outPath)
     outTifObj.setDims(tifObj.getWidth(), tifObj.getHeight(), 1)
     outTifObj.setProj(tifObj.getProj())
     outTifObj.setGeoTrans(tifObj.getGeoTrans())
-    outTifObj.setData(ndvi)
+    outTifObj.setData(bandArray)
     outTifObj.writeTif()
 
     print("finish")

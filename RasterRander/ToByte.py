@@ -113,15 +113,15 @@ def LinearPercent(inputFile, outputFile, percent):
 if __name__ == '__main__':
 
     # 输入数据
-    inputTif = r'C:\Users\Think\Desktop\劣五类水体\ditu.tif'
+    inputTif = r'C:\Users\Administrator\Desktop\AQ.tif'
     # 临时文件夹
-    tempDir = r'C:\Users\Think\Desktop\temp'
+    tempDir = r'C:\Users\Administrator\Desktop\temp'
     nanV = 65535
 
     basename = os.path.basename(inputTif).replace('.tif', '')
     processTif = os.path.join(tempDir, basename + '_byte.tif')
 
-    bandCombine = (3, 2, 1)
+    bandCombine = (1, 2, 1)
     process(inputTif, processTif, bandCombine, nanV)
 
     enhanceTif = os.path.join(tempDir, basename + '_enhance.tif')
@@ -129,7 +129,7 @@ if __name__ == '__main__':
     LinearPercent(processTif, enhanceTif, percentValue)
 
     # 切片假彩色图
-    tileDir = r'C:\Users\Think\Desktop\model\tile-server'
+    tileDir = r'C:\Users\Administrator\Desktop\model\tile-server'
     falseColorDir = os.path.join(tileDir, basename + '_falseColor')
 
     # 1.执行器
@@ -137,7 +137,7 @@ if __name__ == '__main__':
     # 2.切片脚本路径
     scriptPath = GDAL2TILES_PATH
     # 3.切片等级
-    zoomLevel = '9-15'
+    zoomLevel = '8-13'
 
     cmd = '%s %s -z %s -w all %s %s' % (pythonPath, scriptPath, zoomLevel, enhanceTif, falseColorDir)
     os.system(cmd)

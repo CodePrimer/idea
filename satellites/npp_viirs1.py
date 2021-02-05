@@ -199,8 +199,8 @@ def cal_radiance(warp_path, atmo_param, out_tif_path):
 
 if __name__ == '__main__':
 
-    input_path = r'E:\NPP\ori\20200703\1223\RNSCA-RVIRS_npp_d20200703_t1223_svi01.h5'
-    temp_dir = r'E:\NPP\temp'
+    input_path = r'F:\zktq\data\original\NPP\202007021241\RNSCA-RVIRS_npp_d20200702_t1241_svi01.h5'
+    temp_dir = r'C:\Users\Administrator\Desktop\temp'
 
     basename = os.path.basename(input_path).replace('_svi01.h5', '')
 
